@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless IP Service
+
+Globals:
+  Function:
+    Timeout: 5
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+  Domain:
+    Type: String
+  HostedZone:
+    Type: String
+
+Resources:
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref Domain
+      ValidationMethod: DNS
+
+  BackendApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      EndpointConfiguration: REGIONAL
+      Domain:
+        DomainName: !Ref Domain
+        CertificateArn: !Ref ApiCertificate
+        Route53:
+          HostedZoneId: !Ref HostedZone
+
+  MainFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.main_handler
+      Runtime: python3.9
+      Timeout: 10
+      Architectures:
+        - x86_64
+      Events:
+        ip:
+          Type: Api
+          Properties:
+            Path: /api/ip
+            Method: GET
+            RestApiId: !Ref BackendApi
